@@ -1,1 +1,1 @@
-DOMAIN = "onesoftware"
+DOMAIN = "solaris"

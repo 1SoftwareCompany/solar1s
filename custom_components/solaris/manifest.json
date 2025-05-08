@@ -1,10 +1,12 @@
 {
-    "domain": "onesoftware",
+    "domain": "solaris",
     "name": "Solar1s",
     "version": "0.0.1",
-    "integration_type": "integration",
     "documentation": "https://github.com/1SoftwareCompany/solar1s",
     "requirements": [],
     "dependencies": [],
-    "codeowners": ["@1Software"]
-  }
+    "codeowners": ["@1Software"],
+    "iot_class": "local_polling",
+    "platforms": ["sensor"],
+    "integration_type": "integration"
+  }  
