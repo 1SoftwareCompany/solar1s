@@ -29,8 +29,8 @@ class ElectricityPriceCoordinator(DataUpdateCoordinator):
             "query": {
                 "range": {
                     "@timestamp": {
-                        "gte": "now-3h/d",
-                        "lte": "now+1d+20h/d",
+                        "gte": "now/d",
+                        "lte": "now+1d/d",
                         "time_zone": "+03:00"
                     }
                 }
