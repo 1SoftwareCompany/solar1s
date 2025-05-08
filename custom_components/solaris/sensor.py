@@ -66,8 +66,12 @@ class ElectricityPriceSensor(SensorEntity):
     def state(self):
         hits = self.coordinator.data.get("hits", {}).get("hits", [])
         if hits and len(hits) > self.index:
-            return hits[self.index].get("_source", {}).get("price_bgn")
-        return "unavailable"
+            price = hits[self.index].get("_source", {}).get("price_bgn")
+            try:
+                return float(price)
+            except (TypeError, ValueError):
+                return float("nan")  # or return None
+        return float("nan")  # or return None
 
     async def async_update(self):
         await self.coordinator.async_request_refresh()
