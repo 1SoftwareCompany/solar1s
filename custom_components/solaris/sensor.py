@@ -2,7 +2,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.helpers.entity import Entity
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
-from datetime import timedelta
+from datetime import datetime, timedelta
+from homeassistant.util.dt import parse_datetime
 import aiohttp
 import async_timeout
 import logging
@@ -59,6 +60,16 @@ class ElectricityPriceSensor(SensorEntity):
         self._attr_unit_of_measurement = "BGN"
 
     @property
+    def device_info(self):
+        return {
+            "identifiers": {("solaris", "mynkow")},
+            "name": "mynkow",
+            "manufacturer": "1SoftwareCompany",
+            "model": "Solar1S Price Sensors",
+            "entry_type": "service",
+        }
+
+    @property
     def available(self):
         return self.coordinator.last_update_success
 
@@ -72,6 +83,23 @@ class ElectricityPriceSensor(SensorEntity):
             except (TypeError, ValueError):
                 return float("nan")  # or return None
         return float("nan")  # or return None
+
+    @property
+    def extra_state_attributes(self):
+        hits = self.coordinator.data
+        if hits and self.index < len(hits):
+            try:
+                hit = hits[self.index]
+                ts = hit["_source"].get("@timestamp")
+                start = parse_datetime(ts)
+                end = start + timedelta(hours=1) if start else None
+                return {
+                    "start_timestamp": start.isoformat() if start else None,
+                    "end_timestamp": end.isoformat() if end else None,
+                }
+            except Exception as e:
+                _LOGGER.error("Failed to parse timestamps for hour %s: %s", self.index, e)
+        return {}
 
     async def async_update(self):
         await self.coordinator.async_request_refresh()
