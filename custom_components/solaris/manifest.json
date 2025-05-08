@@ -1,0 +1,9 @@
+{
+    "domain": "onesoftware",
+    "name": "Solar1s",
+    "version": "0.0.1",
+    "documentation": "https://github.com/1SoftwareCompany/solar1s",
+    "requirements": [],
+    "dependencies": [],
+    "codeowners": ["@mynkow"]
+  }
