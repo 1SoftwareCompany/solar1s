@@ -1,10 +1,6 @@
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.typing import HomeAssistantType, ConfigType
-from typing import Any
 
-async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry, async_add_entities):
+async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([EmployeeSensor()])
 
 class EmployeeSensor(SensorEntity):
