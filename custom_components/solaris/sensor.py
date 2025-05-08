@@ -1,140 +1,83 @@
-"""Platform for sensor integration."""
-# This file shows the setup for the sensors associated with the cover.
-# They are setup in the same way with the call to the async_setup_entry function
-# via HA from the module __init__. Each sensor has a device_class, this tells HA how
-# to display it in the UI (for know types). The unit_of_measurement property tells HA
-# what the unit is, so it can display the correct range. For predefined types (such as
-# battery), the unit_of_measurement should match what's expected.
-import random
-
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-)
-from homeassistant.const import (
-    PERCENTAGE,
-    LIGHT_LUX,
-)
-from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.core import HomeAssistant
+from datetime import timedelta
+import aiohttp
+import async_timeout
+import logging
 
-from . import HubConfigEntry
-from .const import DOMAIN
+_LOGGER = logging.getLogger(__name__)
 
+API_URL = "http://10.1.1.85:9200/metrics-ibex/_search"
+USERNAME = "elastic"
+PASSWORD = "123qwe123qwe##asd"
 
-# See cover.py for more details.
-# Note how both entities for each roller sensor (battery and illuminance) are added at
-# the same time to the same list. This way only a single async_add_devices call is
-# required.
-async def async_setup_entry(
-    hass: HomeAssistant,
-    config_entry: HubConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Add sensors for passed config_entry in HA."""
-    hub = config_entry.runtime_data
+class ElectricityPriceCoordinator(DataUpdateCoordinator):
+    def __init__(self, hass: HomeAssistant):
+        super().__init__(
+            hass,
+            _LOGGER,
+            name="electricity_prices",
+            update_interval=timedelta(minutes=5),
+        )
 
-    new_devices = []
-    for roller in hub.rollers:
-        new_devices.append(BatterySensor(roller))
-        new_devices.append(IlluminanceSensor(roller))
-    if new_devices:
-        async_add_entities(new_devices)
+    async def _async_update_data(self):
+        payload = {
+            "size": 48,
+            "query": {
+                "range": {
+                    "@timestamp": {
+                        "gte": "now-3h/d",
+                        "lte": "now+1d+20h/d",
+                        "time_zone": "+03:00"
+                    }
+                }
+            },
+            "sort": [{"@timestamp": {"order": "asc"}}]
+        }
 
+        headers = {"Content-Type": "application/json"}
 
-# This base class shows the common properties and methods for a sensor as used in this
-# example. See each sensor for further details about properties and methods that
-# have been overridden.
-class SensorBase(Entity):
-    """Base representation of a Hello World Sensor."""
+        try:
+            async with async_timeout.timeout(10):
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(API_URL, json=payload, headers=headers, auth=aiohttp.BasicAuth(USERNAME, PASSWORD)) as response:
+                        if response.status != 200:
+                            raise UpdateFailed(f"HTTP error: {response.status}")
+                        data = await response.json()
+                        return data
+        except Exception as err:
+            raise UpdateFailed(f"Error fetching data: {err}")
 
-    should_poll = False
+class ElectricityPriceSensor(SensorEntity):
+    def __init__(self, coordinator, index):
+        self.coordinator = coordinator
+        self.index = index
+        self._attr_unique_id = f"energy_price_{index:02}"
+        self._attr_name = f"Energy Price Hour {index:02}"
+        self._attr_unit_of_measurement = "BGN"
 
-    def __init__(self, roller):
-        """Initialize the sensor."""
-        self._roller = roller
-
-    # To link this entity to the cover device, this property must return an
-    # identifiers value matching that used in the cover, but no other information such
-    # as name. If name is returned, this entity will then also become a device in the
-    # HA UI.
     @property
-    def device_info(self):
-        """Return information to link this entity with the correct device."""
-        return {"identifiers": {(DOMAIN, self._roller.roller_id)}}
+    def available(self):
+        return self.coordinator.last_update_success
 
-    # This property is important to let HA know if this entity is online or not.
-    # If an entity is offline (return False), the UI will refelect this.
     @property
-    def available(self) -> bool:
-        """Return True if roller and hub is available."""
-        return self._roller.online and self._roller.hub.online
+    def state(self):
+        hits = self.coordinator.data.get("hits", {}).get("hits", [])
+        if hits and len(hits) > self.index:
+            return hits[self.index].get("_source", {}).get("price_bgn")
+        return "unavailable"
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
 
     async def async_added_to_hass(self):
-        """Run when this Entity has been added to HA."""
-        # Sensors should also register callbacks to HA when their state changes
-        self._roller.register_callback(self.async_write_ha_state)
+        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
 
-    async def async_will_remove_from_hass(self):
-        """Entity being removed from hass."""
-        # The opposite of async_added_to_hass. Remove any registered call backs here.
-        self._roller.remove_callback(self.async_write_ha_state)
+async def async_setup_entry(hass, entry, async_add_entities):
+    coordinator = ElectricityPriceCoordinator(hass)
+    await coordinator.async_config_entry_first_refresh()
 
-
-class BatterySensor(SensorBase):
-    """Representation of a Sensor."""
-
-    # The class of this device. Note the value should come from the homeassistant.const
-    # module. More information on the available devices classes can be seen here:
-    # https://developers.home-assistant.io/docs/core/entity/sensor
-    device_class = SensorDeviceClass.BATTERY
-
-    # The unit of measurement for this entity. As it's a DEVICE_CLASS_BATTERY, this
-    # should be PERCENTAGE. A number of units are supported by HA, for some
-    # examples, see:
-    # https://developers.home-assistant.io/docs/core/entity/sensor#available-device-classes
-    _attr_unit_of_measurement = PERCENTAGE
-
-    def __init__(self, roller):
-        """Initialize the sensor."""
-        super().__init__(roller)
-
-        # As per the sensor, this must be a unique value within this domain. This is done
-        # by using the device ID, and appending "_battery"
-        self._attr_unique_id = f"{self._roller.roller_id}_battery"
-
-        # The name of the entity
-        self._attr_name = f"{self._roller.name} Battery"
-
-        self._state = random.randint(0, 100)
-
-    # The value of this sensor. As this is a DEVICE_CLASS_BATTERY, this value must be
-    # the battery level as a percentage (between 0 and 100)
-    @property
-    def state(self):
-        """Return the state of the sensor."""
-        return self._roller.battery_level
-
-
-# This is another sensor, but more simple compared to the battery above. See the
-# comments above for how each field works.
-class IlluminanceSensor(SensorBase):
-    """Representation of a Sensor."""
-
-    device_class = SensorDeviceClass.ILLUMINANCE
-    _attr_unit_of_measurement = LIGHT_LUX
-
-    def __init__(self, roller):
-        """Initialize the sensor."""
-        super().__init__(roller)
-        # As per the sensor, this must be a unique value within this domain. This is done
-        # by using the device ID, and appending "_battery"
-        self._attr_unique_id = f"{self._roller.roller_id}_illuminance"
-
-        # The name of the entity
-        self._attr_name = f"{self._roller.name} Illuminance"
-
-    @property
-    def state(self):
-        """Return the state of the sensor."""
-        return self._roller.illuminance
+    sensors = [ElectricityPriceSensor(coordinator, i) for i in range(48)]
+    async_add_entities(sensors)
