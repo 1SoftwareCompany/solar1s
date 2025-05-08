@@ -1,12 +1,14 @@
-{
+  {
     "domain": "solaris",
     "name": "Solar1s",
-    "version": "0.0.1",
-    "documentation": "https://github.com/1SoftwareCompany/solar1s",
-    "requirements": [],
+    "codeowners": ["@mynkow"],
+    "config_flow": true,
     "dependencies": [],
-    "codeowners": ["@1Software"],
-    "iot_class": "local_polling",
-    "platforms": ["sensor"],
-    "integration_type": "integration"
-  }  
+    "documentation": "https://www.home-assistant.io/integrations/detailed_hello_world_push",
+    "homekit": {},
+    "iot_class": "local_push",
+    "requirements": [],
+    "ssdp": [],
+    "version": "0.1.0",
+    "zeroconf": []
+  }
