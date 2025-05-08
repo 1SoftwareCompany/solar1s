@@ -1,5 +1,8 @@
 from homeassistant.components.sensor import SensorEntity
 
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+    async_add_entities([EmployeeSensor()])
+
 class EmployeeSensor(SensorEntity):
     def __init__(self):
         self._attr_name = "Employee Mynkow"
