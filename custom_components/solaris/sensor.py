@@ -106,7 +106,7 @@ class PriceHourSensor(SensorEntity):
         self.index = index
         self._attr_unique_id = f"energy_price_{index:02}"
         self._attr_name = f"Energy Price Hour {index:02}"
-        self._attr_native_unit_of_measurement = "BGN/kWh"
+        self._attr_native_unit_of_measurement = "BGN/MWh"
         self._attr_device_class = "monetary"
 
     @property
@@ -214,7 +214,7 @@ class CurrentPriceSensor(SensorEntity):
     _attr_name = "Current Price"
     _attr_unique_id = "energy_price_now"
     _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_native_unit_of_measurement = "BGN/kWh"
+    _attr_native_unit_of_measurement = "BGN/MWh"
 
     def __init__(self, hass: HomeAssistant):
         self.hass = hass
