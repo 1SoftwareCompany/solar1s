@@ -2,7 +2,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.helpers.entity import Entity
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.event import async_track_state_change, async_track_time_change
+from homeassistant.helpers.event import async_track_state_change_event, async_track_time_change
 from homeassistant.helpers.storage import Store
 from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
@@ -223,7 +223,7 @@ class CurrentPriceSensor(SensorEntity):
         async_track_time_change(hass, self._update, minute=0, second=0)
 
         # Update when any of the hourly sensors change
-        async_track_state_change(hass, self._watched_entities(), self._update)
+        async_track_state_change_event(hass, self._watched_entities(), self._update)
 
     def _watched_entities(self) -> list[str]:
         return [f"sensor.energy_price_hour_{i:02d}" for i in range(48)]
