@@ -22,6 +22,17 @@ class EnergyPriceSensor(SensorEntity):
         self.coordinator = coordinator
 
     @property
+    def device_info(self) -> dict:
+        """Return device information."""
+        return {
+            "identifiers": {("solaris", "mynkow")},
+            "name": "Solar1s",
+            "manufacturer": "1SoftwareCompany",
+            "model": "Solar1s Price Sensors",
+            "entry_type": "service",
+        }
+
+    @property
     def state(self) -> float | None:
         """Return the price for the current time."""
         if not self.coordinator.data:

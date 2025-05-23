@@ -1,11 +1,9 @@
 """Coordinator to fetch and manage electricity price data."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.helpers.storage import Store
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.event import async_track_time_change
-from homeassistant.util.dt import parse_datetime
+from homeassistant.util import dt as dt_util  # Correctly import dt_util for date and time utilities
 import aiohttp
 import async_timeout
 import logging
@@ -25,43 +23,13 @@ class IbexCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
-            name="electricity_prices",
+            name="Solaris Coordinator",
             update_interval=timedelta(minutes=5),
         )
-
-        self._last_success: datetime | None = None  # Track the last successful update time
-        self._store = Store(hass, 1, "custom_energy_price_cache.json")  # Persistent storage
-        self._previous_data: dict | None = None  # Cache for the last successful data
-
-        # Schedule the daily test email at 15:00
-        async_track_time_change(
-            hass,
-            self._send_daily_email,
-            hour=15,
-            minute=0,
-            second=0,
-        )
-
-    async def _send_daily_email(self, now: datetime) -> None:
-        """Send a test email every day at the scheduled time."""
-        _LOGGER.info("Sending daily email")
-
-        try:
-            await self.hass.services.async_call(
-                "notify",
-                "email",
-                {
-                    "title": "Daily Mail From Solaris",
-                    "message": "This is your test message sent automatically every afternoon.",
-                },
-                blocking=True,
-            )
-            _LOGGER.info("Test email sent successfully")
-        except Exception as e:
-            _LOGGER.error("Failed to send test email: %s", e)
+        self._last_success = None
 
     async def _async_update_data(self) -> dict:
-        """Fetch data from the API and handle errors."""
+        """Fetch data from the API."""
         payload = {
             "size": 48,
             "query": {
@@ -75,10 +43,10 @@ class IbexCoordinator(DataUpdateCoordinator):
             },
             "sort": [{"@timestamp": {"order": "asc"}}],
         }
-
         headers = {"Content-Type": "application/json"}
 
         try:
+            _LOGGER.debug("Sending request to API with payload: %s", payload)
             async with async_timeout.timeout(10):
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
@@ -90,33 +58,14 @@ class IbexCoordinator(DataUpdateCoordinator):
                         if response.status != 200:
                             raise UpdateFailed(f"HTTP error: {response.status}")
                         data = await response.json()
-                        self._last_success = datetime.now(timezone.utc)  # Update with timezone-aware datetime
-                        await self._store_data(data)  # Save the data to persistent storage
-                        self._previous_data = data  # Cache the data in memory
+                        _LOGGER.debug("Received data from API: %s", data)
+                        self._last_success = dt_util.utcnow()  # Use dt_util for the current UTC time
                         return data
         except Exception as err:
             _LOGGER.error("Error fetching data: %s", err)
-            if self._previous_data:
-                _LOGGER.debug("Using cached data due to API failure")
-                return self._previous_data  # Use cached data if available
-            raise UpdateFailed("No data available and API request failed") from err
-
-    async def _store_data(self, data: dict) -> None:
-        """Store data persistently."""
-        await self._store.async_save(data)
-
-    async def _load_data(self) -> dict | None:
-        """Load data from persistent storage."""
-        return await self._store.async_load()
-
-    async def async_config_entry_first_refresh(self) -> None:
-        """Load cached data on startup before the first refresh."""
-        cached_data = await self._load_data()
-        if cached_data:
-            _LOGGER.debug("Loaded cached data on startup")
-            self._previous_data = cached_data
+            raise UpdateFailed(f"Error fetching data: {err}") from err
 
     @property
-    def last_success_time(self) -> datetime | None:
-        """Return the datetime of the last successful update."""
+    def last_success_time(self):
+        """Return the last successful update time."""
         return self._last_success

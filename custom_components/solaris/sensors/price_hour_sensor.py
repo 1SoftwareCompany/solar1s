@@ -1,5 +1,6 @@
 from datetime import timedelta
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util.dt import parse_datetime
 from homeassistant.helpers.entity import EntityCategory
 import logging
@@ -7,12 +8,12 @@ import logging
 _LOGGER = logging.getLogger(__name__)
 
 
-class PriceHourSensor(SensorEntity):
+class PriceHourSensor(CoordinatorEntity, SensorEntity):
     """Sensor for hourly electricity prices."""
 
     def __init__(self, coordinator, index: int):
         """Initialize the hourly price sensor."""
-        self.coordinator = coordinator
+        super().__init__(coordinator)
         self.index = index
         self._attr_unique_id = f"energy_price_{index:02}"
         self._attr_name = f"Energy Price Hour {index:02}"
