@@ -29,19 +29,40 @@ class EnergyPriceSensor(SensorEntity):
 
     @property
     def state(self) -> float | None:
-        """Return the price for the current or next hour."""
+        """Return the price for the current time."""
         if not self.coordinator.data:
             return None
+
         hits = self.coordinator.data.get("hits", {}).get("hits", [])
-        now = dt_util.now()
-        for hit in hits:
+        now = dt_util.now()  # Current time in the local timezone
+        _LOGGER.debug("Current local time: %s", now)
+
+        for i in range(len(hits) - 1):
             try:
-                # Convert the timestamp to the local timezone
-                timestamp = dt_util.as_local(parse_datetime(hit["_source"].get("@timestamp")))
-                if timestamp and timestamp >= now:
-                    return float(hit["_source"].get("price_bgn"))
-            except (TypeError, ValueError):
+                # Parse the current and next timestamps
+                current_timestamp = parse_datetime(hits[i]["_source"].get("@timestamp"))
+                next_timestamp = parse_datetime(hits[i + 1]["_source"].get("@timestamp"))
+
+                if not current_timestamp or not next_timestamp:
+                    continue
+
+                # Convert timestamps to local timezone
+                current_timestamp_local = dt_util.as_local(current_timestamp)
+                next_timestamp_local = dt_util.as_local(next_timestamp)
+
+                _LOGGER.debug(
+                    "Checking range: %s - %s", current_timestamp_local, next_timestamp_local
+                )
+
+                # Check if 'now' is between the current and next timestamps
+                if current_timestamp_local <= now < next_timestamp_local:
+                    price = float(hits[i]["_source"].get("price_bgn"))
+                    _LOGGER.debug("Selected price: %s", price)
+                    return price
+            except (TypeError, ValueError) as e:
+                _LOGGER.error("Error parsing price or timestamp: %s", e)
                 continue
+
         return None
 
     @property
