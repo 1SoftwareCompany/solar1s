@@ -39,6 +39,38 @@ class SolarisConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }),
         )
 
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
+        if user_input is not None:
+            return self.async_update_reload_and_abort(
+                self._get_reconfigure_entry(),
+                data={
+                    "api_url": user_input["api_url"],
+                    "username": user_input["username"],
+                    "password": user_input["password"],
+                    "produced_energy_entity": user_input.get("produced_energy_entity"),
+                },
+            )
+
+        # Retrieve the current configuration values
+        current_config = self._get_reconfigure_entry().data
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema({
+                vol.Required("api_url", default=current_config.get("api_url", "")): str,
+                vol.Required("username", default=current_config.get("username", "")): str,
+                vol.Required("password", default=current_config.get("password", "")): str,
+                vol.Optional(
+                    "produced_energy_entity",
+                    default=current_config.get("produced_energy_entity"),
+                ): selector({"entity": {"domain": "sensor"}}),  # Allow selecting a sensor entity
+        }),
+        )
+
+    def _get_reconfigure_entry(self) -> config_entries.ConfigEntry:
+        """Get the current config entry being reconfigured."""
+        return self.hass.config_entries.async_get_entry(self.context["entry_id"])
+
 
 class SolarisOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle Solaris options."""

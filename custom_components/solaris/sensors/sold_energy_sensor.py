@@ -18,6 +18,17 @@ class SoldEnergySensor(SensorEntity):
         self._attr_native_unit_of_measurement = "BGN"
 
     @property
+    def device_info(self):
+        """Return device information."""
+        return {
+            "identifiers": {("solaris", "mynkow")},
+            "name": "Solar1s",
+            "manufacturer": "1SoftwareCompany",
+            "model": "Solar1s Price Sensors",
+            "entry_type": "service",
+        }
+
+    @property
     def state(self) -> float | None:
         """Calculate and return the sold energy in BGN."""
         energy_price_state = self.hass.states.get(self.energy_price_sensor)
@@ -42,5 +53,5 @@ class SoldEnergySensor(SensorEntity):
         """Return additional attributes."""
         return {
             "produced_energy_entity": self.produced_energy_entity,
-            "energy_price_sensor": self.energy_price_sensor,
+            "solar1s_all_prices": self.energy_price_sensor,
         }

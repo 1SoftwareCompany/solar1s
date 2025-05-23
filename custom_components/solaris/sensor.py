@@ -19,6 +19,10 @@ async def async_setup_entry(
     # Retrieve the coordinator from hass.data
     coordinator: IbexCoordinator = hass.data["solaris"][entry.entry_id]
 
+    # Retrieve configured sensor names from the config entry
+    energy_price_sensor = entry.data.get("energy_price_sensor", "sensor.solar1s_all_prices")
+    produced_energy_entity = entry.data.get("produced_energy_entity", "sensor.produced_energy")
+
     # Add sensors
     price_sensors = [PriceHourSensor(coordinator, i) for i in range(48)]
     async_add_entities(
@@ -28,6 +32,6 @@ async def async_setup_entry(
             IbexPricesLastUpdatedSensor(coordinator),
             CurrentPriceSensor(hass),
             CurrentPriceSensorKWH(hass),
-            SoldEnergySensor(coordinator, "sensor.energy_price_now", "sensor.produced_energy"),
+            SoldEnergySensor(coordinator, energy_price_sensor, produced_energy_entity),
         ]
     )
