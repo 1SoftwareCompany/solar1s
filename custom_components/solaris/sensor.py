@@ -37,10 +37,38 @@ class IbexCoordinator(DataUpdateCoordinator):
             name="electricity_prices",
             update_interval=timedelta(minutes=5),
         )
+
         self._last_success = None  # Track the last successful update time
         self._store = Store(hass, 1, "custom_energy_price_cache.json")  # Persistent storage
         self._previous_data = None  # Cache for the last successful data
 
+        # ✅ Schedule the daily test email at 15:00
+        async_track_time_change(
+            hass=self.hass,
+            action=self._send_daily_email,
+            hour=15,
+            minute=7,
+            second=0,
+        )
+
+    async def _send_daily_email(self, now):
+        """Send a test email every day at the scheduled time."""
+        _LOGGER.info("Sending daily email")
+
+        try:
+            await self.hass.services.async_call(
+                "notify",
+                "email",
+                {
+                    "title": "Daily Mail From Solaris",
+                    "recipient"
+                    "message": "This is your test message sent automatically every afternoon."
+                },
+                blocking=True
+            )
+            _LOGGER.info("Test email sent successfully")
+        except Exception as e:
+            _LOGGER.error(f"Failed to send test email: {e}")
     async def _async_update_data(self) -> dict:
         """Fetch data from the API and handle errors."""
         payload = {
@@ -211,7 +239,7 @@ class IbexPricesLastUpdatedSensor(SensorEntity):
 
 class CurrentPriceSensor(SensorEntity):
     _attr_has_entity_name = True
-    _attr_name = "Current Price"
+    _attr_name = "Current Price MWh"
     _attr_unique_id = "energy_price_now"
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_native_unit_of_measurement = "BGN/MWh"
@@ -262,6 +290,59 @@ class CurrentPriceSensor(SensorEntity):
             "entry_type": "service",
         }
 
+class CurrentPriceSensorKWH(SensorEntity):
+    _attr_has_entity_name = True
+    _attr_name = "Current Price kWh"
+    _attr_unique_id = "energy_price_now_kwh"
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_native_unit_of_measurement = "BGN/kWh"
+
+    def __init__(self, hass: HomeAssistant):
+        self.hass = hass
+
+        # Update hourly
+        async_track_time_change(hass, self._update, minute=0, second=0)
+
+        # Update when any of the hourly sensors change
+        async_track_state_change_event(hass, self._watched_entities(), self._update)
+
+    def _watched_entities(self) -> list[str]:
+        return [f"sensor.energy_price_hour_{i:02d}" for i in range(48)]
+
+    async def _update(self, *args):
+        """Trigger an update and write the new state."""
+        self.async_write_ha_state()
+
+    @property
+    def state(self) -> float | None:
+        now_hour = dt_util.now().hour 
+        entity_id = f"sensor.energy_price_hour_{now_hour:02d}"
+        state = self.hass.states.get(entity_id)
+        if state and state.state not in (None, "unknown", "unavailable"):
+            try:
+                return float(state.state) / 1000
+            except ValueError:
+                return None
+        return None
+
+    @property
+    def unique_id(self) -> str:
+        return self._attr_unique_id
+
+    @property
+    def should_poll(self) -> bool:
+        return False  # This is a calculated, event-driven sensor
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("solaris", "mynkow")},
+            "name": "Solar1s",
+            "manufacturer": "1SoftwareCompany",
+            "model": "Solar1s Price Sensors",
+            "entry_type": "service",
+        }
+
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the Solaris sensors."""
     coordinator = IbexCoordinator(hass)
@@ -275,5 +356,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
     # Delay adding CurrentPriceSensor until all others are registered
     async def _add_current_price_sensor(_now):
         async_add_entities([CurrentPriceSensor(hass)])
+        async_add_entities([CurrentPriceSensorKWH(hass)])
 
     hass.loop.call_later(1, lambda: hass.async_create_task(_add_current_price_sensor(None)))
