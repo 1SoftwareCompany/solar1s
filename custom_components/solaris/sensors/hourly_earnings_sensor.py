@@ -4,9 +4,9 @@ from custom_components.solaris.const import DOMAIN
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
-from homeassistant.helpers.event import async_track_state_change
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import async_track_state_change, datetime
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
 
 
 class HourlyEarningsSensor(SensorEntity, RestoreEntity):
@@ -86,6 +86,20 @@ class HourlyEarningsSensor(SensorEntity, RestoreEntity):
         return self._value
 
     @property
+    def extra_state_attributes(self):
+        """Expose latest matched yield and price."""
+        if not hasattr(self, "_history") or not self._history:
+            return {}
+
+        last_ts = max(self._history)
+        return {
+            "last_timestamp": last_ts,
+            "last_yield_kwh": self._history[last_ts]["yield_kwh"],
+            "last_price_kwh": self._history[last_ts]["price_kwh"],
+            "last_earnings": self._history[last_ts]["earnings"],
+        }
+
+    @property
     def device_info(self):
         """Return device information."""
         return {
@@ -95,3 +109,38 @@ class HourlyEarningsSensor(SensorEntity, RestoreEntity):
             "model": "Solar1s Price Sensors",
             "entry_type": "service",
         }
+
+
+class DailyEarningsSensor(SensorEntity, RestoreEntity):
+    def __init__(
+        self,
+        hass,
+        hourly_sensor: HourlyEarningsSensor,
+        unique_id: str,
+        client_id: str,
+        client_location: str,
+    ):
+        self.unique_id = f"{unique_id}_daily_earnings"
+
+        self._attr_name = f"Daily Earnings {client_id} {client_location}"
+        self._attr_native_unit_of_measurement = "BGN"
+        self._attr_unique_id = self.unique_id
+        self._value = 0.0
+        self._last_day = dt_util.start_of_local_day().day
+        self._hass = hass
+
+        @callback
+        def _on_hourly_update(event):
+            today = dt_util.start_of_local_day().day
+            if today != self._last_day:
+                self._value = 0.0
+                self._last_day = today
+            self._value += event.data.get("value", 0.0)
+            self._value = round(self._value, 3)
+            self.async_write_ha_state()
+
+        hass.bus.async_listen(hourly_sensor.unique_id, _on_hourly_update)
+
+    @property
+    def native_value(self):
+        return self._value

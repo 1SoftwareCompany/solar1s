@@ -5,7 +5,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .sensors.earnings_sensor import EarningsSensor
-from .sensors.hourly_earnings_sensor import HourlyEarningsSensor
+from .sensors.hourly_earnings_sensor import DailyEarningsSensor, HourlyEarningsSensor
 
 
 async def async_setup_entry(
@@ -61,4 +61,12 @@ async def async_setup_entry(
         energy_price_entity,
     )
 
-    async_add_entities([hourly])
+    daily = DailyEarningsSensor(
+        hass,
+        hourly,
+        unique_id=unique_id,
+        client_id=client_id,
+        client_location=client_location,
+    )
+
+    async_add_entities([hourly, daily])
