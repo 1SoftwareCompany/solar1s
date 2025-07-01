@@ -120,7 +120,7 @@ class DailyEarningsSensor(SensorEntity, RestoreEntity):
         client_id: str,
         client_location: str,
     ):
-        self.unique_id = f"{unique_id}_daily_earnings"
+        self.unique_id = f"{unique_id}_daily"
 
         self._attr_name = f"Daily Earnings {client_id} {client_location}"
         self._attr_native_unit_of_measurement = "BGN"
