@@ -43,15 +43,6 @@ async def async_setup_entry(
     energy_price_entity = entry.data.get("energy_price_entity")
     produced_energy_entity = entry.data.get("produced_energy_entity")
 
-    # Create a uniquely identified sensor
-    earnings = EarningsSensor(
-        unique_id=unique_id,
-        client_id=client_id,
-        client_location=client_location,
-        energy_price_entity=energy_price_entity,
-        produced_energy_entity=produced_energy_entity,
-    )
-
     hourly = HourlyEarningsSensor(
         hass,
         unique_id,
@@ -61,12 +52,4 @@ async def async_setup_entry(
         energy_price_entity,
     )
 
-    daily = DailyEarningsSensor(
-        hass,
-        hourly,
-        unique_id=unique_id,
-        client_id=client_id,
-        client_location=client_location,
-    )
-
-    async_add_entities([hourly, daily])
+    async_add_entities([hourly])
