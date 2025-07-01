@@ -144,3 +144,14 @@ class DailyEarningsSensor(SensorEntity, RestoreEntity):
     @property
     def native_value(self):
         return self._value
+
+    @property
+    def device_info(self):
+        """Return device information."""
+        return {
+            "identifiers": {(DOMAIN, f"{self.client_id}_{self.client_location}")},
+            "name": f"Solaris {self.client_id} - {self.client_location}",
+            "manufacturer": "1Software Company",
+            "model": "Solar1s Price Sensors",
+            "entry_type": "service",
+        }
