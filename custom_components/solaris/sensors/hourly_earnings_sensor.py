@@ -4,9 +4,8 @@ from custom_components.solaris.const import DOMAIN
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
-from homeassistant.helpers.event import async_track_state_change, datetime
+from homeassistant.helpers.event import async_track_state_change
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.util import dt as dt_util
 
 
 class HourlyEarningsSensor(SensorEntity, RestoreEntity):

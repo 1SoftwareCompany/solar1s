@@ -4,8 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .sensors.earnings_sensor import EarningsSensor
-from .sensors.hourly_earnings_sensor import DailyEarningsSensor, HourlyEarningsSensor
+from .sensors.hourly_earnings_sensor import HourlyEarningsSensor
 
 
 async def async_setup_entry(
