@@ -5,6 +5,7 @@ from custom_components.solaris.const import DOMAIN
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 
 
@@ -75,15 +76,10 @@ class HourlyEarningsSensor(SensorEntity, RestoreEntity):
             except Exception as e:
                 self._value = 0.0
 
-        async_track_state_change(self._hass, self._yield_entity, _on_yield_update)
-
-        # Set up the listener for the yield sensor
-
-        self.async_on_remove(
-            self._hass.helpers.event.async_track_state_change_event(
-                self._yield_entity, _on_yield_update
-            )
+        unsub = async_track_state_change(
+            self._hass, self._yield_entity, _on_yield_update
         )
+        self.async_on_remove(unsub)
 
     @property
     def native_value(self):
